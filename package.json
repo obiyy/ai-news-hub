@@ -1,0 +1,8 @@
+{
+  "name": "ai-news-hub",
+  "version": "1.0.0",
+  "description": "AI News aggregator",
+  "dependencies": {
+    "rss-parser": "^3.13.0"
+  }
+}
