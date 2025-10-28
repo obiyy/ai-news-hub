@@ -2,7 +2,6 @@ const Parser = require('rss-parser');
 const parser = new Parser();
 
 exports.handler = async function(event, context) {
-  // CORSヘッダーを設定
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -13,23 +12,33 @@ exports.handler = async function(event, context) {
     const feeds = [
       {
         name: 'OpenAI Blog',
-        url: 'https://openai.com/blog/rss.xml'
+        url: 'https://openai.com/blog/rss.xml',
+        color: '#10a37f'
       },
       {
         name: 'Meta AI',
-        url: 'https://ai.meta.com/blog/rss/'
+        url: 'https://ai.meta.com/blog/rss/',
+        color: '#0668e1'
       },
       {
-        name: 'Google AI Blog',
-        url: 'https://blog.research.google/feeds/posts/default/-/Machine%20Learning'
+        name: 'Anthropic',
+        url: 'https://raw.githubusercontent.com/conoro/anthropic-engineering-rss-feed/main/anthropic_engineering_rss.xml',
+        color: '#cc785c'
       },
       {
-        name: 'DeepMind Blog',
-        url: 'https://deepmind.google/blog/rss.xml'
+        name: 'Google AI',
+        url: 'https://blog.research.google/feeds/posts/default/-/Machine%20Learning',
+        color: '#ea4335'
+      },
+      {
+        name: 'DeepMind',
+        url: 'https://deepmind.google/blog/rss.xml',
+        color: '#1a73e8'
       },
       {
         name: 'Microsoft AI',
-        url: 'https://blogs.microsoft.com/ai/feed/'
+        url: 'https://blogs.microsoft.com/ai/feed/',
+        color: '#00a4ef'
       }
     ];
 
@@ -42,6 +51,7 @@ exports.handler = async function(event, context) {
         feedData.items.slice(0, 5).forEach(item => {
           allNews.push({
             source: feed.name,
+            color: feed.color,
             title: item.title,
             link: item.link,
             description: item.contentSnippet ? item.contentSnippet.substring(0, 150) + '...' : '',
@@ -51,14 +61,10 @@ exports.handler = async function(event, context) {
         });
       } catch (err) {
         console.error(`Error fetching ${feed.name}:`, err);
-        // エラーが出ても他のフィードは続行
       }
     }
 
-    // 日付でソート（新しい順）
     allNews.sort((a, b) => b.rawDate - a.rawDate);
-
-    // rawDateを削除してクリーンなデータに
     const cleanNews = allNews.map(({rawDate, ...item}) => item);
 
     return {
