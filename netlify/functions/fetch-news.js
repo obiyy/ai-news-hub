@@ -16,8 +16,8 @@ exports.handler = async function(event, context) {
         url: 'https://openai.com/blog/rss.xml'
       },
       {
-        name: 'Anthropic News',
-        url: 'https://www.anthropic.com/news/rss.xml'
+        name: 'Meta AI',
+        url: 'https://ai.meta.com/blog/rss/'
       },
       {
         name: 'Google AI Blog',
@@ -26,6 +26,10 @@ exports.handler = async function(event, context) {
       {
         name: 'DeepMind Blog',
         url: 'https://deepmind.google/blog/rss.xml'
+      },
+      {
+        name: 'Microsoft AI',
+        url: 'https://blogs.microsoft.com/ai/feed/'
       }
     ];
 
@@ -41,21 +45,26 @@ exports.handler = async function(event, context) {
             title: item.title,
             link: item.link,
             description: item.contentSnippet ? item.contentSnippet.substring(0, 150) + '...' : '',
-            date: formatDate(new Date(item.pubDate))
+            date: formatDate(new Date(item.pubDate || item.isoDate)),
+            rawDate: new Date(item.pubDate || item.isoDate)
           });
         });
       } catch (err) {
         console.error(`Error fetching ${feed.name}:`, err);
+        // エラーが出ても他のフィードは続行
       }
     }
 
     // 日付でソート（新しい順）
-    allNews.sort((a, b) => new Date(b.date) - new Date(a.date));
+    allNews.sort((a, b) => b.rawDate - a.rawDate);
+
+    // rawDateを削除してクリーンなデータに
+    const cleanNews = allNews.map(({rawDate, ...item}) => item);
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ news: allNews.slice(0, 30) })
+      body: JSON.stringify({ news: cleanNews.slice(0, 30) })
     };
 
   } catch (error) {
