@@ -122,25 +122,6 @@
         color: #e53e3e;
     }
 
-    .info-box {
-        background: white;
-        border-radius: 15px;
-        padding: 20px;
-        margin-bottom: 20px;
-        text-align: center;
-    }
-
-    .info-box h3 {
-        color: #2d3748;
-        margin-bottom: 10px;
-    }
-
-    .info-box p {
-        color: #4a5568;
-        font-size: 0.9em;
-        line-height: 1.6;
-    }
-
     .refresh-btn {
         position: fixed;
         bottom: 30px;
@@ -158,6 +139,24 @@
 
     .refresh-btn:active {
         transform: scale(0.9) rotate(180deg);
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.75em;
+        margin-bottom: 15px;
+    }
+
+    .status-success {
+        background: #c6f6d5;
+        color: #22543d;
+    }
+
+    .status-loading {
+        background: #feebc8;
+        color: #744210;
     }
 
     @media (max-width: 480px) {
@@ -185,6 +184,8 @@
         </header>
 
 ```
+    <div id="status-container"></div>
+
     <div id="news-container">
         <div class="loading">
             <div class="spinner"></div>
@@ -198,41 +199,30 @@
 <script>
     async function loadNews() {
         const container = document.getElementById('news-container');
+        const statusContainer = document.getElementById('status-container');
+        
         container.innerHTML = '<div class="loading"><div class="spinner"></div>ニュースを読み込み中...</div>';
+        statusContainer.innerHTML = '<div class="loading"><span class="status-badge status-loading">📡 サーバーに接続中...</span></div>';
 
         try {
-            // AllOriginsを使ってCORSを回避
-            const corsProxy = 'https://api.allorigins.win/get?url=';
-            const rssUrl = 'https://rss.app/feeds/v1.1/sM4LJjHIXbYBiMPX.json';
-            
-            const response = await fetch(corsProxy + encodeURIComponent(rssUrl));
+            // Netlify/Vercel Functionを呼び出し
+            const response = await fetch('/.netlify/functions/fetch-news');
             
             if (!response.ok) {
-                throw new Error('ニュースフィードの取得に失敗しました');
+                throw new Error(`サーバーエラー: ${response.status}`);
             }
             
             const data = await response.json();
-            const feedData = JSON.parse(data.contents);
             
-            if (!feedData.items || feedData.items.length === 0) {
+            if (!data.news || data.news.length === 0) {
                 throw new Error('ニュースが見つかりませんでした');
             }
 
-            const allNews = feedData.items.map(item => ({
-                source: item.source || 'AI News',
-                title: cleanText(item.title),
-                description: cleanText(item.description || item.content_text || ''),
-                link: item.url,
-                date: new Date(item.date_published)
-            }));
+            statusContainer.innerHTML = '<div style="text-align: center;"><span class="status-badge status-success">✅ 最新ニュースを取得しました</span></div>';
 
-            // 日付でソート
-            allNews.sort((a, b) => b.date - a.date);
+            const allNews = data.news;
 
-            // 上位30件
-            const topNews = allNews.slice(0, 30);
-
-            container.innerHTML = topNews.map(news => `
+            container.innerHTML = allNews.map(news => `
                 <div class="news-card">
                     <span class="news-source">${news.source}</span>
                     <div class="news-title">
@@ -240,90 +230,22 @@
                             ${news.title}
                         </a>
                     </div>
-                    ${news.description ? `<div class="news-description">${truncateText(news.description, 150)}</div>` : ''}
-                    <div class="news-date">${formatDate(news.date)}</div>
+                    ${news.description ? `<div class="news-description">${news.description}</div>` : ''}
+                    <div class="news-date">${news.date}</div>
                 </div>
             `).join('');
 
         } catch (error) {
             console.error('Load news error:', error);
+            statusContainer.innerHTML = '';
             container.innerHTML = `
-                <div class="info-box">
-                    <h3>⚠️ ニュースの読み込みに問題が発生しました</h3>
-                    <p>現在、外部APIの制限により自動取得が困難な状況です。</p>
-                    <p style="margin-top: 15px;">代替案として以下をご検討ください：</p>
-                </div>
-                <div class="news-card">
-                    <div class="news-title">
-                        <a href="https://openai.com/news/" target="_blank" rel="noopener noreferrer" class="news-link">
-                            OpenAI News
-                        </a>
-                    </div>
-                    <div class="news-description">OpenAIの公式ニュースページ</div>
-                </div>
-                <div class="news-card">
-                    <div class="news-title">
-                        <a href="https://www.anthropic.com/news" target="_blank" rel="noopener noreferrer" class="news-link">
-                            Anthropic News
-                        </a>
-                    </div>
-                    <div class="news-description">Anthropicの公式ニュースページ</div>
-                </div>
-                <div class="news-card">
-                    <div class="news-title">
-                        <a href="https://blog.google/technology/ai/" target="_blank" rel="noopener noreferrer" class="news-link">
-                            Google AI Blog
-                        </a>
-                    </div>
-                    <div class="news-description">GoogleのAI関連ブログ</div>
-                </div>
-                <div class="news-card">
-                    <div class="news-title">
-                        <a href="https://www.technologyreview.com/topic/artificial-intelligence/" target="_blank" rel="noopener noreferrer" class="news-link">
-                            MIT Technology Review - AI
-                        </a>
-                    </div>
-                    <div class="news-description">MITのテクノロジーレビュー AI特集</div>
-                </div>
-                <div class="news-card">
-                    <div class="news-title">
-                        <a href="https://techcrunch.com/category/artificial-intelligence/" target="_blank" rel="noopener noreferrer" class="news-link">
-                            TechCrunch - AI
-                        </a>
-                    </div>
-                    <div class="news-description">TechCrunchのAIカテゴリー</div>
+                <div class="error">
+                    <p style="font-size: 1.2em; margin-bottom: 10px;">⚠️ ニュースの読み込みに失敗しました</p>
+                    <p style="font-size: 0.9em; margin-bottom: 15px;">${error.message}</p>
+                    <p style="font-size: 0.85em; color: #718096;">🔄ボタンで再読み込みしてください</p>
                 </div>
             `;
         }
-    }
-
-    function cleanText(text) {
-        const tmp = document.createElement('div');
-        tmp.innerHTML = text;
-        return tmp.textContent || tmp.innerText || '';
-    }
-
-    function truncateText(text, maxLength) {
-        if (text.length <= maxLength) return text;
-        return text.substr(0, maxLength) + '...';
-    }
-
-    function formatDate(date) {
-        const now = new Date();
-        const diff = now - date;
-        const minutes = Math.floor(diff / 60000);
-        const hours = Math.floor(diff / 3600000);
-        const days = Math.floor(diff / 86400000);
-
-        if (minutes < 1) return '今';
-        if (minutes < 60) return `${minutes}分前`;
-        if (hours < 24) return `${hours}時間前`;
-        if (days < 7) return `${days}日前`;
-        
-        return date.toLocaleDateString('ja-JP', { 
-            month: 'short', 
-            day: 'numeric' 
-        });
     }
 
     loadNews();
