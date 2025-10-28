@@ -122,13 +122,23 @@
         color: #e53e3e;
     }
 
-    .error-detail {
-        font-size: 0.85em;
-        color: #718096;
-        margin-top: 10px;
-        padding: 10px;
-        background: #f7fafc;
-        border-radius: 8px;
+    .info-box {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .info-box h3 {
+        color: #2d3748;
+        margin-bottom: 10px;
+    }
+
+    .info-box p {
+        color: #4a5568;
+        font-size: 0.9em;
+        line-height: 1.6;
     }
 
     .refresh-btn {
@@ -186,76 +196,41 @@
 <button class="refresh-btn" onclick="loadNews()" title="更新">🔄</button>
 
 <script>
-    const RSS_FEEDS = [
-        {
-            name: 'AI News',
-            url: 'https://feeds.feedburner.com/blogspot/gJZg'
-        },
-        {
-            name: 'VentureBeat AI',
-            url: 'https://venturebeat.com/category/ai/feed/'
-        },
-        {
-            name: 'Analytics India',
-            url: 'https://analyticsindiamag.com/feed/'
-        }
-    ];
-
-    let errorCount = 0;
-
     async function loadNews() {
         const container = document.getElementById('news-container');
         container.innerHTML = '<div class="loading"><div class="spinner"></div>ニュースを読み込み中...</div>';
-        errorCount = 0;
 
         try {
-            const allNews = [];
-            const errors = [];
-
-            for (const feed of RSS_FEEDS) {
-                try {
-                    // rss2json APIを使用
-                    const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}&api_key=YOUR_API_KEY&count=8`;
-                    
-                    const response = await fetch(apiUrl);
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-                    
-                    const data = await response.json();
-
-                    if (data.status === 'ok' && data.items && data.items.length > 0) {
-                        data.items.forEach(item => {
-                            allNews.push({
-                                source: feed.name,
-                                title: cleanText(item.title),
-                                description: cleanText(item.description || ''),
-                                link: item.link,
-                                date: new Date(item.pubDate)
-                            });
-                        });
-                    } else {
-                        errors.push(`${feed.name}: ${data.message || '取得失敗'}`);
-                    }
-                } catch (err) {
-                    console.error(`Error loading ${feed.name}:`, err);
-                    errors.push(`${feed.name}: ${err.message}`);
-                }
-                
-                // 少し待機してレート制限を回避
-                await new Promise(resolve => setTimeout(resolve, 500));
+            // AllOriginsを使ってCORSを回避
+            const corsProxy = 'https://api.allorigins.win/get?url=';
+            const rssUrl = 'https://rss.app/feeds/v1.1/sM4LJjHIXbYBiMPX.json';
+            
+            const response = await fetch(corsProxy + encodeURIComponent(rssUrl));
+            
+            if (!response.ok) {
+                throw new Error('ニュースフィードの取得に失敗しました');
+            }
+            
+            const data = await response.json();
+            const feedData = JSON.parse(data.contents);
+            
+            if (!feedData.items || feedData.items.length === 0) {
+                throw new Error('ニュースが見つかりませんでした');
             }
 
-            if (allNews.length === 0) {
-                throw new Error('すべてのフィードから取得できませんでした。\n\n詳細:\n' + errors.join('\n'));
-            }
+            const allNews = feedData.items.map(item => ({
+                source: item.source || 'AI News',
+                title: cleanText(item.title),
+                description: cleanText(item.description || item.content_text || ''),
+                link: item.url,
+                date: new Date(item.date_published)
+            }));
 
             // 日付でソート
             allNews.sort((a, b) => b.date - a.date);
 
-            // 上位20件に制限
-            const topNews = allNews.slice(0, 20);
+            // 上位30件
+            const topNews = allNews.slice(0, 30);
 
             container.innerHTML = topNews.map(news => `
                 <div class="news-card">
@@ -270,32 +245,59 @@
                 </div>
             `).join('');
 
-            // 一部のフィードが失敗した場合の警告
-            if (errors.length > 0 && allNews.length > 0) {
-                console.warn('一部のフィードで問題が発生:', errors);
-            }
-
         } catch (error) {
+            console.error('Load news error:', error);
             container.innerHTML = `
-                <div class="error">
-                    <p style="font-size: 1.2em; margin-bottom: 10px;">⚠️ ニュースの読み込みに失敗しました</p>
-                    <p style="font-size: 0.9em;">以下をお試しください：</p>
-                    <ul style="text-align: left; margin: 15px auto; max-width: 300px; line-height: 1.8;">
-                        <li>ネットワーク接続を確認</li>
-                        <li>🔄ボタンで再読み込み</li>
-                        <li>数分後に再度お試しください</li>
-                    </ul>
-                    <div class="error-detail">
-                        ${error.message}
+                <div class="info-box">
+                    <h3>⚠️ ニュースの読み込みに問題が発生しました</h3>
+                    <p>現在、外部APIの制限により自動取得が困難な状況です。</p>
+                    <p style="margin-top: 15px;">代替案として以下をご検討ください：</p>
+                </div>
+                <div class="news-card">
+                    <div class="news-title">
+                        <a href="https://openai.com/news/" target="_blank" rel="noopener noreferrer" class="news-link">
+                            OpenAI News
+                        </a>
                     </div>
+                    <div class="news-description">OpenAIの公式ニュースページ</div>
+                </div>
+                <div class="news-card">
+                    <div class="news-title">
+                        <a href="https://www.anthropic.com/news" target="_blank" rel="noopener noreferrer" class="news-link">
+                            Anthropic News
+                        </a>
+                    </div>
+                    <div class="news-description">Anthropicの公式ニュースページ</div>
+                </div>
+                <div class="news-card">
+                    <div class="news-title">
+                        <a href="https://blog.google/technology/ai/" target="_blank" rel="noopener noreferrer" class="news-link">
+                            Google AI Blog
+                        </a>
+                    </div>
+                    <div class="news-description">GoogleのAI関連ブログ</div>
+                </div>
+                <div class="news-card">
+                    <div class="news-title">
+                        <a href="https://www.technologyreview.com/topic/artificial-intelligence/" target="_blank" rel="noopener noreferrer" class="news-link">
+                            MIT Technology Review - AI
+                        </a>
+                    </div>
+                    <div class="news-description">MITのテクノロジーレビュー AI特集</div>
+                </div>
+                <div class="news-card">
+                    <div class="news-title">
+                        <a href="https://techcrunch.com/category/artificial-intelligence/" target="_blank" rel="noopener noreferrer" class="news-link">
+                            TechCrunch - AI
+                        </a>
+                    </div>
+                    <div class="news-description">TechCrunchのAIカテゴリー</div>
                 </div>
             `;
-            console.error('Load news error:', error);
         }
     }
 
     function cleanText(text) {
-        // HTMLタグを除去
         const tmp = document.createElement('div');
         tmp.innerHTML = text;
         return tmp.textContent || tmp.innerText || '';
@@ -324,7 +326,6 @@
         });
     }
 
-    // ページ読み込み時に実行
     loadNews();
 </script>
 ```
