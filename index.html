@@ -79,7 +79,6 @@
 
     .news-source {
         display: inline-block;
-        background: #667eea;
         color: white;
         padding: 4px 12px;
         border-radius: 12px;
@@ -205,7 +204,6 @@
         statusContainer.innerHTML = '<div class="loading"><span class="status-badge status-loading">📡 サーバーに接続中...</span></div>';
 
         try {
-            // Netlify/Vercel Functionを呼び出し
             const response = await fetch('/.netlify/functions/fetch-news');
             
             if (!response.ok) {
@@ -224,7 +222,7 @@
 
             container.innerHTML = allNews.map(news => `
                 <div class="news-card">
-                    <span class="news-source">${news.source}</span>
+                    <span class="news-source" style="background-color: ${news.color};">${news.source}</span>
                     <div class="news-title">
                         <a href="${news.link}" target="_blank" rel="noopener noreferrer" class="news-link">
                             ${news.title}
